@@ -7,6 +7,7 @@ import static io.restassured.RestAssured.given;
 
 public class UserApiClient {
     private final String baseUrl;
+    private static UserApiClient instance;
 
     public UserApiClient(String baseUrl) {
         this.baseUrl = baseUrl;

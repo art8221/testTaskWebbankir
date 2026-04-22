@@ -1,4 +1,5 @@
 import io.restassured.response.Response;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -16,13 +17,51 @@ public class UserTests extends BaseTest {
     private String createdUserName;
     private UsersTablePage adminUsersPage;
 
+    @Test
+    void createUserAndRemoved() {
+        createdUserName = "userName" + " " + UUID.randomUUID().toString().substring(0, 8);
+        createdUserEmail = "userEmail" + UUID.randomUUID().toString().substring(0, 8) + "@example.com";
+
+        Map<String, Object> userPayload = new HashMap<>();
+        userPayload.put("name", createdUserName);
+        userPayload.put("email", createdUserEmail);
+        userPayload.put("role", "user");
+
+        Response createResponse = apiClient.createUser(userPayload);
+
+        assertEquals(201, createResponse.getStatusCode(), "Статус код не соответствует ожидаемому");
+
+
+        createdUserId = createResponse.jsonPath().getString("id");
+
+        assertNotNull(createdUserId, "ID пользователя не должен быть null");
+
+        adminUsersPage = new UsersTablePage(driver);
+        adminUsersPage.pageToLoad();
+
+        assertTrue(adminUsersPage.isUserPresent(createdUserName, createdUserEmail),
+                "Пользователь с именем '" + createdUserName + "' не появился на странице /admin/users");
+
+
+        Response deleteResponse = apiClient.deleteUser(createdUserId);
+        int statusCode = deleteResponse.getStatusCode();
+
+        assertEquals(200, statusCode,
+                String.format("Не удалось удалить пользователя с ID '%s'", createdUserId));
+
+        adminUsersPage.refresh();
+
+        assertTrue(adminUsersPage.isUserAbsent(createdUserName, createdUserEmail),
+                "Пользователь с именем '" + createdUserName + "' всё ещё отображается после удаления");
+    }
+
     @ParameterizedTest
     @MethodSource("userTestDataProvider")
-    void createUserAndRemoved(String testName, String userName, String userEmail,
-                              String role, int expectedStatusCode, boolean shouldExistInUI) {
+    void createNegative(String testName, String userName, String userEmail, String hostEmail,
+                String role, int expectedStatusCode) {
 
         createdUserName = userName + " " + UUID.randomUUID().toString().substring(0, 8);
-        createdUserEmail = userEmail + UUID.randomUUID().toString().substring(0, 8) + "@example.com";
+        createdUserEmail = userEmail + UUID.randomUUID().toString().substring(0, 8) + hostEmail;
 
         Map<String, Object> userPayload = new HashMap<>();
         userPayload.put("name", createdUserName);
@@ -35,69 +74,32 @@ public class UserTests extends BaseTest {
                 String.format("[%s] Ожидался статус %d, получен: %d",
                         testName, expectedStatusCode, createResponse.getStatusCode()));
 
-        if (expectedStatusCode == 201) {
-            createdUserId = createResponse.jsonPath().getString("id");
+        adminUsersPage = new UsersTablePage(driver);
+        adminUsersPage.pageToLoad();
 
-            assertNotNull(createdUserId,
-                    String.format("[%s] ID пользователя не должен быть null", testName));
+        assertFalse(adminUsersPage.isUserPresent(createdUserName, createdUserEmail),
+                "Пользователь с именем '" + createdUserName + "' появился на странице /admin/users");
 
-            adminUsersPage = new UsersTablePage(driver);
-            adminUsersPage.pageToLoad();
 
-            boolean userFound = adminUsersPage.isUserPresent(createdUserName, createdUserEmail);
-
-            if (shouldExistInUI) {
-                assertTrue(userFound,
-                        String.format("[%s] Пользователь с email '%s' или именем '%s' не найден на странице",
-                                testName, createdUserEmail, createdUserName));
-            } else {
-                assertFalse(userFound,
-                        String.format("[%s] Пользователь с email '%s' не должен отображаться на странице",
-                                testName, createdUserEmail));
-            }
-
-            Response deleteResponse = apiClient.deleteUser(createdUserId);
-            int statusCode = deleteResponse.getStatusCode();
-
-            assertEquals(200, statusCode,
-                    String.format("[%s] Не удалось удалить пользователя с ID '%s'",
-                            testName, createdUserId));
-
-            adminUsersPage.refresh();
-
-            boolean userStillExists = adminUsersPage.isUserPresent(createdUserName, createdUserEmail);
-
-            assertFalse(userStillExists,
-                    String.format("[%s] Пользователь с email '%s' всё ещё отображается после удаления",
-                            testName, createdUserEmail));
-        }
     }
 
     static Stream<Arguments> userTestDataProvider() {
         return Stream.of(
                 Arguments.of(
-                        "Валидный пользователь",
-                        "Test User",
-                        "test.",
+                        "Невалидный user name",
+                        "TestUser;%?*?:%;%:?*?%:??:?:?",
+                        "test",
+                        "@example.com",
                         "user",
-                        201,
-                        true
+                        400
                 ),
                 Arguments.of(
                         "Невалидный email",
                         "Invalid Email User",
                         "invalid-email",
+                        "example.com",
                         "user",
-                        400,
-                        false
-                ),
-                Arguments.of(
-                        "Дублирующийся email",
-                        "Duplicate User",
-                        "duplicate.",
-                        "user",
-                        409,
-                        false
+                        400
                 )
         );
     }

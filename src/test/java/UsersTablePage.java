@@ -1,3 +1,5 @@
+import org.openqa.selenium.By;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
@@ -40,8 +42,29 @@ public class UsersTablePage {
     }
 
     public boolean isUserPresent(String userName, String userEmail) {
-        return getAllUsers().stream()
-                .anyMatch(user -> user.containsText(userName) || user.containsText(userEmail));
+        try {
+            wait.until(ExpectedConditions.or(
+                    ExpectedConditions.textToBePresentInElementLocated(
+                            By.xpath("//td[contains(text(), '" + userName + "')]"), userName),
+                    ExpectedConditions.textToBePresentInElementLocated(
+                            By.xpath("//td[contains(text(), '" + userEmail + "')]"), userEmail)
+            ));
+            return true;
+        } catch (TimeoutException e) {
+            return false;
+        }
+    }
+
+    public boolean isUserAbsent(String userName, String userEmail) {
+        try {
+            wait.until(ExpectedConditions.and(
+                    ExpectedConditions.invisibilityOfElementLocated(By.xpath("//td[contains(text(), '" + userName + "')]")),
+                    ExpectedConditions.invisibilityOfElementLocated(By.xpath("//td[contains(text(), '" + userEmail + "')]"))
+            ));
+            return true;
+        } catch (TimeoutException e) {
+            return false;
+        }
     }
 
     public List<UserRow> getAllUsers() {
