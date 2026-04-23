@@ -18,23 +18,35 @@ public class UserApiClient {
                 .baseUri(baseUrl)
                 .contentType(ContentType.JSON)
                 .body(payload)
+                .log().all()           // ← добавить .all()
                 .when()
-                .post("/api/v1/users");
+                .post("/api/v1/users")
+                .then()
+                .log().all()           // ← добавить .all()
+                .extract().response(); // ← добавить .response()
     }
 
     public Response getUserById(String userId) {
         return given()
                 .baseUri(baseUrl)
                 .pathParam("id", userId)
+                .log().all()
                 .when()
-                .get("/api/v1/users/{id}");
+                .get("/api/v1/users/{id}")
+                .then()
+                .log().all()
+                .extract().response();
     }
 
     public Response deleteUser(String userId) {
         return given()
                 .baseUri(baseUrl)
                 .pathParam("id", userId)
+                .log().all()
                 .when()
-                .delete("/api/v1/users/{id}");
+                .delete("/api/v1/users/{id}")
+                .then()
+                .log().all()
+                .extract().response();
     }
 }

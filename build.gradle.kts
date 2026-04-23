@@ -20,7 +20,10 @@ dependencies {
     implementation("com.codeborne:selenide:7.15.0")
     implementation("io.github.bonigarcia:webdrivermanager:6.3.3")
     implementation("org.seleniumhq.selenium:selenium-api:4.41.0")
-    testImplementation("io.rest-assured:rest-assured:4.4.0")}
+    testImplementation("io.rest-assured:rest-assured:4.4.0")
+    testImplementation("org.wiremock:wiremock-standalone:3.13.2")
+}
+
 
 tasks.test {
     useJUnitPlatform()
